@@ -1,0 +1,30 @@
+[project]
+name = "audit-proxy"
+version = "0.2.0"
+description = "Transparent reverse proxy in front of Stirling-PDF that writes a JSONL audit log"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.120",
+    "httpx>=0.28",
+    "uvicorn>=0.38",
+    "python-multipart>=0.0.20",
+    "pypdf>=6.0",
+    "tzdata>=2025.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "integration: needs stirling-pdf + audit-proxy running (see scripts/integration-test.sh)",
+    "e2e: needs the full stack (Caddy + Authelia) running in test mode",
+]
+addopts = "-m 'not integration and not e2e'"
+
+[tool.uv]
+package = false

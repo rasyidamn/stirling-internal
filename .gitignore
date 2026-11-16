@@ -1,0 +1,15 @@
+# secrets & local config
+.env
+*.env.local
+authelia/secrets/
+caddy/certs/
+
+# runtime data
+logs/
+authelia/data/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/

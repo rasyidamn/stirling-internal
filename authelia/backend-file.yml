@@ -1,0 +1,8 @@
+# TEST MODE (AUTH_BACKEND=file): local dummy users, no AD needed.
+---
+authentication_backend:
+  password_reset:
+    disable: true
+  file:
+    path: /config/users_database.yml
+    watch: true

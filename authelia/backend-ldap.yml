@@ -1,0 +1,23 @@
+# PRODUCTION (AUTH_BACKEND=ldap): Active Directory. All values come from .env.
+---
+authentication_backend:
+  password_reset:
+    disable: true          # passwords are changed in Windows/AD, not here
+  # Re-read the user from AD every 5 minutes: disabled accounts and removed
+  # group memberships take effect without waiting for the session to expire.
+  refresh_interval: 5m
+  ldap:
+    implementation: activedirectory
+    address: '{{ env "AD_LDAP_URL" }}'          # e.g. ldaps://dc01.corp.example:636
+    timeout: 5s
+    tls:
+      server_name: '{{ env "AD_TLS_SERVER_NAME" }}'
+      skip_verify: false
+      minimum_version: TLS1.2
+    base_dn: '{{ env "AD_BASE_DN" }}'           # e.g. DC=corp,DC=example
+    # Read-only service account (no admin rights needed).
+    user: '{{ env "AD_BIND_USER" }}'            # e.g. CN=svc-authelia,OU=Service Accounts,DC=corp,DC=example
+    password: '{{ env "AD_BIND_PASSWORD" }}'
+    # The activedirectory defaults already filter out disabled accounts.
+    # Nested groups (user is in a group that is in GG-PDF-Users): uncomment.
+    # groups_filter: '(&(member:1.2.840.113556.1.4.1941:={dn})(objectClass=group))'

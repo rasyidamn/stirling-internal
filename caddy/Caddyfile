@@ -1,0 +1,49 @@
+{
+	# Uncomment to see every request while troubleshooting:
+	# debug
+}
+
+{$PDF_HOSTNAME} {
+	# TLS from Caddy's own internal CA. Install its root certificate on staff PCs
+	# (via AD Group Policy) - see docs/operasional.md. To use a certificate from a
+	# company CA instead, replace the line below with:
+	#   tls /certs/pdftools.crt /certs/pdftools.key
+	tls internal
+
+	# Identity headers are ONLY trusted when Authelia sets them. Remove anything
+	# the browser sent so nobody can pretend to be another user.
+	request_header -Remote-User
+	request_header -Remote-Groups
+	request_header -Remote-Email
+	request_header -Remote-Name
+
+	encode zstd gzip
+
+	# Authelia login portal.
+	handle /auth* {
+		reverse_proxy authelia:9091
+	}
+
+	# Health of audit-proxy for monitoring (Zabbix). No login, no audit.
+	handle /healthz {
+		reverse_proxy audit-proxy:8000
+	}
+
+	handle {
+		forward_auth authelia:9091 {
+			uri /auth/api/authz/forward-auth
+			copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+		}
+		reverse_proxy audit-proxy:8000 {
+			transport http {
+				# Must exceed STIRLING_TIMEOUT (set CADDY_UPSTREAM_TIMEOUT in .env).
+				response_header_timeout {$CADDY_UPSTREAM_TIMEOUT:330s}
+			}
+		}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

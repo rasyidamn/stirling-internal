@@ -1,0 +1,19 @@
+# HANYA UNTUK MODE UJI (AUTH_BACKEND=file). Jangan dipakai di produksi.
+# Akun dummy:
+#   staf.uji    / Uji-PDF-staf-2026   -> anggota GG-PDF-Users (boleh masuk)
+#   orang.luar  / Uji-PDF-luar-2026   -> bukan anggota (harus ditolak)
+# Hash dibuat dengan:
+#   docker run --rm authelia/authelia:4.39.28 authelia crypto hash generate argon2 --password '...'
+users:
+  staf.uji:
+    displayname: "Staf Uji"
+    email: staf.uji@pdftools.local
+    password: "$argon2id$v=19$m=65536,t=3,p=4$WpN6m0XnhN+5ToZZq7iYbA$z1WELo+jXZbJYr72k7785n+43jUKvUH3V+7Wa0+Xnao"
+    groups:
+      - GG-PDF-Users
+  orang.luar:
+    displayname: "Orang Luar"
+    email: orang.luar@pdftools.local
+    password: "$argon2id$v=19$m=65536,t=3,p=4$Qsg8SaRrn4LkSzUGQULn2Q$7W1EaAKkmt87F2ckkFPCfU+7H116JHDnSnCnNPnp4D8"
+    groups:
+      - GG-Finance

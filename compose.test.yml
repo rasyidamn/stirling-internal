@@ -1,0 +1,7 @@
+# Test-only override: exposes audit-proxy on localhost so integration tests can
+# call it directly with a Remote-User header. NEVER use this file in production.
+#   docker compose -f docker-compose.yml -f compose.test.yml up -d stirling-pdf audit-proxy
+services:
+  audit-proxy:
+    ports:
+      - "127.0.0.1:${TEST_PROXY_PORT:-18081}:8000"

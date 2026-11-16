@@ -1,0 +1,133 @@
+# Stirling-PDF + audit-proxy (+ Caddy/Authelia in Phase 2).
+# All settings come from .env (copy .env.example -> .env).
+name: stirling-audit
+
+# Bounded container logs (Docker's default json-file grows forever). Authelia's
+# log is the only record of logins: copy it off the server too (docs/operasional.md).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "${DOCKER_LOG_MAX_SIZE:-20m}"
+    max-file: "${DOCKER_LOG_MAX_FILE:-10}"
+
+services:
+  stirling-pdf:
+    # Official image, unmodified. Pinned version - see README "Update versi".
+    image: stirlingtools/stirling-pdf:3.3.0
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      SECURITY_ENABLELOGIN: "false"          # login handled by Authelia + AD
+      SYSTEM_ENABLEANALYTICS: "false"
+      SYSTEM_ENABLEPOSTHOG: "false"
+      SYSTEM_ENABLESCARF: "false"
+      SYSTEM_SHOWUPDATE: "false"
+      SYSTEM_SHOWSETTINGSWHENNOLOGIN: "false"
+      SYSTEM_ENABLEMOBILESCANNER: "false"
+      SYSTEM_ENABLEMOBILESIGNATURE: "false"
+      SYSTEM_GOOGLEVISIBILITY: "false"
+      SYSTEM_CORSALLOWEDORIGINS: "https://${PDF_HOSTNAME:?set PDF_HOSTNAME in .env}"
+      SYSTEM_FILEUPLOADLIMIT: "${MAX_UPLOAD_MB:-200}MB"
+      ENDPOINTS_GROUPSTOREMOVE: "Automation,DeveloperTools,DeveloperDocs,DocParse"
+      ENDPOINTS_TOREMOVE: "auto-rotate-pdf,url-to-pdf"
+      UI_DEFAULTHIDEUNAVAILABLETOOLS: "true"
+      UI_DEFAULTHIDEUNAVAILABLECONVERSIONS: "true"
+    volumes:
+      - stirling-configs:/configs
+    networks:
+      - backend
+    # NO "ports:" here on purpose - Stirling is reachable only from audit-proxy.
+
+  audit-proxy:
+    build: ./audit-proxy
+    image: stirling-audit/audit-proxy:0.2.0
+    restart: unless-stopped
+    logging: *logging
+    user: "${AUDIT_UID:-1000}:${AUDIT_GID:-1000}"
+    read_only: true
+    environment:
+      STIRLING_URL: http://stirling-pdf:8080
+      LOG_DIR: /logs
+      LOG_RETENTION_DAYS: "${LOG_RETENTION_DAYS:-365}"
+      MAX_UPLOAD_MB: "${MAX_UPLOAD_MB:-200}"
+      STIRLING_TIMEOUT: "${STIRLING_TIMEOUT:-300}"
+      # Second line of defence: same AD group that Authelia requires.
+      ALLOWED_GROUPS: "${PDF_GROUP:?set PDF_GROUP in .env}"
+      SYSLOG_HOST: "${SYSLOG_HOST:-}"
+      SYSLOG_PORT: "${SYSLOG_PORT:-514}"
+      SYSLOG_PROTOCOL: "${SYSLOG_PROTOCOL:-udp}"
+      TMP_DIR: /tmp
+      MAX_CONCURRENT_UPLOADS: "${MAX_CONCURRENT_UPLOADS:-3}"
+      UPLOAD_QUEUE_TIMEOUT: "${UPLOAD_QUEUE_TIMEOUT:-30}"
+      PAGE_COUNT_MAX_MB: "${PAGE_COUNT_MAX_MB:-50}"
+      AUDIT_FAIL_CLOSED: "${AUDIT_FAIL_CLOSED:-false}"
+      ALLOWED_API_PREFIXES: "${ALLOWED_API_PREFIXES:-}"
+    volumes:
+      - ./logs:/logs
+    tmpfs:
+      # Uploaded files are spooled here only while a request is in flight (RAM, never disk).
+      - /tmp:size=${TMPFS_SIZE:-1g},mode=1777
+    depends_on:
+      stirling-pdf:
+        condition: service_healthy
+    networks:
+      - backend
+      - frontend
+
+  authelia:
+    image: authelia/authelia:4.39.28
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      TZ: Asia/Jakarta
+      X_AUTHELIA_CONFIG: "/config/configuration.yml,/config/backend-${AUTH_BACKEND:-file}.yml"
+      X_AUTHELIA_CONFIG_FILTERS: template
+      PDF_HOSTNAME: "${PDF_HOSTNAME}"
+      PDF_GROUP: "${PDF_GROUP}"
+      AUTHELIA_SESSION_SECRET: "${AUTHELIA_SESSION_SECRET:?run scripts/generate-secrets.sh}"
+      AUTHELIA_STORAGE_ENCRYPTION_KEY: "${AUTHELIA_STORAGE_ENCRYPTION_KEY:?run scripts/generate-secrets.sh}"
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET: "${AUTHELIA_JWT_SECRET:?run scripts/generate-secrets.sh}"
+      # Active Directory (only used when AUTH_BACKEND=ldap)
+      AD_LDAP_URL: "${AD_LDAP_URL:-}"
+      AD_TLS_SERVER_NAME: "${AD_TLS_SERVER_NAME:-}"
+      AD_BASE_DN: "${AD_BASE_DN:-}"
+      AD_BIND_USER: "${AD_BIND_USER:-}"
+      AD_BIND_PASSWORD: "${AD_BIND_PASSWORD:-}"
+    volumes:
+      - ./authelia:/config:ro
+      - authelia-data:/data
+    networks:
+      - frontend   # needs to reach the domain controllers on the LAN
+
+  caddy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PDF_HOSTNAME: "${PDF_HOSTNAME}"
+      CADDY_UPSTREAM_TIMEOUT: "${CADDY_UPSTREAM_TIMEOUT:-330s}"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data        # contains the internal CA private key - back it up!
+      - caddy-config:/config
+    depends_on:
+      audit-proxy:
+        condition: service_healthy
+      authelia:
+        condition: service_healthy   # image has a built-in healthcheck
+    networks:
+      - frontend
+
+networks:
+  backend:
+    internal: true   # no route to LAN/Internet: Stirling cannot phone home or be reached
+  frontend: {}
+
+volumes:
+  stirling-configs:
+  authelia-data:
+  caddy-data:
+  caddy-config:
