@@ -37,6 +37,9 @@ fi
 echo "ok: stirling-pdf is not reachable from the host"
 
 echo "==> pytest (integration)"
-cd audit-proxy
-AUDIT_PROXY_URL="http://127.0.0.1:${PORT}" AUDIT_LOG_DIR="$(cd .. && pwd)/logs" \
-  uv run --frozen pytest -m integration -q
+# Subshell: the EXIT trap (compose down) must still run from the project root.
+(
+  cd audit-proxy
+  AUDIT_PROXY_URL="http://127.0.0.1:${PORT}" AUDIT_LOG_DIR="$(cd .. && pwd)/logs" \
+    uv run --frozen pytest -m integration -q
+)
