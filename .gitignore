@@ -3,6 +3,9 @@
 *.env.local
 authelia/secrets/
 caddy/certs/
+# organisation-specific CA certificates (folder itself is kept via .gitkeep)
+authelia/certs/*
+!authelia/certs/.gitkeep
 
 # runtime data
 logs/

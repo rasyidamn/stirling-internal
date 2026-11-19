@@ -65,9 +65,14 @@ Akun dummy hanya untuk mode uji. Peringatan sertifikat: lihat `docs/operasional.
 
 Langkah:
 
-1. Isi nilai di atas pada `.env`, lalu ubah `AUTH_BACKEND=ldap`.
-2. `docker compose up -d` (Authelia dibuat ulang).
-3. Login dengan akun AD anggota grup. Cek `docker compose logs authelia` bila gagal.
+1. Untuk LDAPS: simpan root CA yang menerbitkan sertifikat DC (format PEM) di `authelia/certs/`, mis. `authelia/certs/ad-root-ca.crt`.
+2. Isi nilai di atas pada `.env`, lalu ubah `AUTH_BACKEND=ldap`. Password akun service tidak boleh mengandung `'`.
+3. `docker compose up -d` (Authelia dibuat ulang).
+4. Login dengan akun AD anggota grup. Cek `docker compose logs authelia` bila gagal.
+
+Langkah lengkap (objek AD, DNS, LDAPS, GPO) dan skenario uji: **`docs/uji-ad.md`**.
+
+Logout: buka `https://<PDF_HOSTNAME>/logout`. UI Stirling tidak punya tombol logout karena login bawaannya dimatikan.
 
 Catatan keamanan: tanpa LDAPS, password staf dikirim ke DC **tanpa enkripsi** (ldap://389). Gunakan hanya untuk lab. Untuk produksi, minta admin AD mengaktifkan LDAPS.
 
@@ -158,7 +163,7 @@ caddy/Caddyfile
 authelia/configuration.yml, backend-file.yml, backend-ldap.yml, users_database.yml (uji)
 audit-proxy/              kode, Dockerfile, test (pytest)
 scripts/                  generate-secrets.sh, integration-test.sh
-docs/                     investigasi.md, operasional.md, zabbix.md
+docs/                     investigasi.md, operasional.md, zabbix.md, uji-ad.md
 ```
 
 ## Pengembangan audit-proxy

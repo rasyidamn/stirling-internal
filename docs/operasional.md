@@ -96,7 +96,10 @@ Setelah update Stirling, ulangi pengecekan singkat Fase 0: apakah ada tool baru 
 | Browser: "untrusted certificate" | Root CA terpasang? | Bagian 2 |
 | Halaman login tidak muncul / redirect loop | `docker compose logs authelia` | `PDF_HOSTNAME` di `.env` harus sama persis dengan alamat yang dibuka staf |
 | Login benar tetapi "403 Forbidden" | User anggota `PDF_GROUP`? | Tambahkan ke grup AD, tunggu ≤5 menit (refresh_interval) atau logout/login |
-| Login AD selalu gagal | `docker compose logs authelia` (cari `LDAP`) | Cek `AD_LDAP_URL`, DN akun service, password, firewall port 636/389 dari server ke DC |
+| Login AD selalu gagal | `docker compose logs authelia` (cari `LDAP`) | Cek `AD_LDAP_URL`, DN akun service, password, firewall port 636/389 dari server ke DC. Langkah lengkap: `docs/uji-ad.md` |
+| Authelia error `x509` / `certificate signed by unknown authority` | `ls authelia/certs/` | Root CA AD (PEM) belum ada di `authelia/certs/`, atau `AD_TLS_SERVER_NAME` tidak sama dengan nama di sertifikat DC (`docs/uji-ad.md` §3) |
+| Authelia tidak mau start setelah update: `certificates_directory` | `ls -d authelia/certs` | Folder `authelia/certs/` harus ada (boleh kosong), ikut tersalin ke server |
+| Tidak bisa logout | | Buka `https://<PDF_HOSTNAME>/logout` |
 | "File terlalu besar" | `MAX_UPLOAD_MB` | Naikkan di `.env`, lalu `docker compose up -d` (Stirling ikut menyesuaikan) |
 | Proses lama lalu error 504 | `STIRLING_TIMEOUT` | Naikkan (detik). Dokumen sangat besar butuh waktu. Naikkan juga `CADDY_UPSTREAM_TIMEOUT` (≥ `STIRLING_TIMEOUT` + 30 detik) |
 | "Server sedang sibuk" (503) | jumlah baris `server busy` di log audit | Banyak upload bersamaan. Naikkan `MAX_CONCURRENT_UPLOADS` **bersama** `TMPFS_SIZE` (lihat komentar di `.env.example`) |

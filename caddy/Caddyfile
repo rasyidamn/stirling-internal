@@ -19,6 +19,10 @@
 
 	encode zstd gzip
 
+	# Easy-to-remember logout (Stirling's UI has no logout button because its
+	# own login is disabled; the session belongs to Authelia).
+	redir /logout /auth/logout 302
+
 	# Authelia login portal.
 	handle /auth* {
 		reverse_proxy authelia:9091

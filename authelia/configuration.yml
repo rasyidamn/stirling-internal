@@ -6,6 +6,11 @@
 theme: auto
 default_2fa_method: ''
 
+# Extra trusted CAs (PEM, *.crt / *.pem): put the Active Directory root CA here
+# so ldaps:// can be verified (skip_verify stays false). See docs/uji-ad.md.
+# The folder must exist (it ships with a .gitkeep) or Authelia will not start.
+certificates_directory: '/config/certs'
+
 server:
   # Served under https://<PDF_HOSTNAME>/auth so only ONE DNS name is needed.
   address: 'tcp://:9091/auth'
